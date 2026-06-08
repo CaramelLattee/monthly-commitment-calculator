@@ -389,16 +389,9 @@ class App(ctk.CTk):
 
     # ── Filter for view month ──────────────────────────────────────────────────
     def _commitments_for_view(self):
-        result = []
-        for c in self.data["commitments"]:
-            due_iso = c.get("due_date")
-            if due_iso:
-                d = date.fromisoformat(due_iso)
-                if d.month == self._view_month and d.year == self._view_year:
-                    result.append(c)
-            else:
-                result.append(c)
-        return result
+        # All commitments are monthly recurring — show every one in every month.
+        # The due date indicates which day of the month, not a one-time occurrence.
+        return list(self.data["commitments"])
 
     # ── Refresh UI ─────────────────────────────────────────────────────────────
     def _refresh(self):
@@ -438,7 +431,7 @@ class App(ctk.CTk):
             w.destroy()
 
         sorted_list = sorted(
-            visible, key=lambda c: (c.get("due_date") or f"9999-{c.get('due') or 99:02d}"))
+            visible, key=lambda c: c.get("due") or 99)
 
         if not sorted_list:
             ctk.CTkLabel(self.scroll, text="— no commitments for this period —",
@@ -514,13 +507,8 @@ class App(ctk.CTk):
         for i, c in enumerate(sorted_list):
             bg = theme.STRIP if i % 2 == 0 else theme.PANEL
 
-            due_iso = c.get("due_date")
-            if due_iso:
-                due_str = date.fromisoformat(due_iso).strftime("%d %b %Y")
-            elif c.get("due"):
-                due_str = f"Day {c['due']:02d}"
-            else:
-                due_str = "—"
+            due_day = c.get("due")
+            due_str = f"Day {due_day:02d}" if due_day else "—"
 
             _build_row(tbl, bg,
                        num_txt=f"{i+1:02d}",
@@ -534,16 +522,11 @@ class App(ctk.CTk):
         income  = self.data["income"]
         visible = self._commitments_for_view()
         sorted_list = sorted(
-            visible, key=lambda c: (c.get("due_date") or f"9999-{c.get('due') or 99:02d}"))
+            visible, key=lambda c: c.get("due") or 99)
         rows = []
         for i, c in enumerate(sorted_list):
-            due_iso = c.get("due_date")
-            if due_iso:
-                due_str = date.fromisoformat(due_iso).strftime("%d %b %Y")
-            elif c.get("due"):
-                due_str = f"Day {c['due']}"
-            else:
-                due_str = "—"
+            due_day = c.get("due")
+            due_str = f"Day {due_day}" if due_day else "—"
             rows.append((i+1, c["name"], fmt(c["amount"]), due_str))
         return rows, sum(c["amount"] for c in visible), income
 
