@@ -87,8 +87,10 @@ class App(ctk.CTk):
             fg_color=theme.STRIP, border_color=theme.BORDER, text_color=theme.TEXT,
             placeholder_text_color=theme.MUTED, height=46, corner_radius=4)
         self.income_entry.grid(row=1, column=1, padx=(0, 10), pady=(0, 14), sticky="ew")
-        if self.data["income"]:
-            self.income_entry.insert(0, str(self.data["income"]))
+        month_income = self.data["income"].get(
+            f"{self._view_year}-{self._view_month:02d}", 0)
+        if month_income:
+            self.income_entry.insert(0, str(month_income))
         self.income_entry.bind("<KeyRelease>", self._on_income_change)
 
         ctk.CTkButton(
@@ -327,7 +329,7 @@ class App(ctk.CTk):
             icon="warning"
         ):
             return
-        self.data = {"income": 0, "commitments": []}
+        self.data = {"income": {}, "commitments": []}
         save_data(self.data)
         self.income_entry.delete(0, "end")
         self._new_due_date = None
@@ -337,13 +339,20 @@ class App(ctk.CTk):
         self.entry_amount.delete(0, "end")
         self._refresh()
 
+    # ── Income helpers ─────────────────────────────────────────────────────────
+    def _month_key(self):
+        return f"{self._view_year}-{self._view_month:02d}"
+
+    def _get_income(self):
+        return self.data["income"].get(self._month_key(), 0)
+
     # ── Income change ──────────────────────────────────────────────────────────
     def _on_income_change(self, event=None):
         try:
             val = float(self.income_entry.get().replace(",", ""))
         except ValueError:
             val = 0
-        self.data["income"] = val
+        self.data["income"][self._month_key()] = val
         save_data(self.data)
         self._refresh()
 
@@ -410,7 +419,18 @@ class App(ctk.CTk):
 
     # ── Refresh UI ─────────────────────────────────────────────────────────────
     def _refresh(self):
-        income  = self.data["income"]
+        income  = self._get_income()
+
+        # Sync income entry with the current month's value
+        try:
+            displayed = float(self.income_entry.get().replace(",", "") or "0")
+        except ValueError:
+            displayed = 0
+        if displayed != income:
+            self.income_entry.delete(0, "end")
+            if income:
+                self.income_entry.insert(0, str(income))
+
         visible = self._commitments_for_view()
         total   = sum(c["amount"] for c in visible)
         remain  = income - total
@@ -557,7 +577,7 @@ class App(ctk.CTk):
 
     # ── Export helpers ─────────────────────────────────────────────────────────
     def _export_rows(self):
-        income  = self.data["income"]
+        income  = self._get_income()
         visible = self._commitments_for_view()
         sorted_list = sorted(
             visible, key=lambda c: c.get("due") or 99)

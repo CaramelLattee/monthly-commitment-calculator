@@ -15,8 +15,12 @@ DATA_FILE = os.path.join(_base, "data.json")
 def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r") as f:
-            return json.load(f)
-    return {"income": 0, "commitments": []}
+            data = json.load(f)
+        # Migrate old single-value income to per-month dict
+        if not isinstance(data.get("income"), dict):
+            data["income"] = {}
+        return data
+    return {"income": {}, "commitments": []}
 
 
 def save_data(data):
