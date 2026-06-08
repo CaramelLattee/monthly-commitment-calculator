@@ -329,7 +329,7 @@ class App(ctk.CTk):
             icon="warning"
         ):
             return
-        self.data = {"income": {}, "commitments": []}
+        self.data = {"income": {}, "commitments": {}, "paid": {}}
         save_data(self.data)
         self.income_entry.delete(0, "end")
         self._new_due_date = None
@@ -374,7 +374,8 @@ class App(ctk.CTk):
             self.entry_amount.focus()
             return
 
-        self.data["commitments"].append({
+        key = self._month_key()
+        self.data["commitments"].setdefault(key, []).append({
             "id":       int(time.time() * 1000),
             "name":     name,
             "amount":   amount,
@@ -392,11 +393,14 @@ class App(ctk.CTk):
         self._refresh()
 
     def _remove_commitment(self, cid):
-        self.data["commitments"] = [c for c in self.data["commitments"] if c["id"] != cid]
-        # also remove from any paid lists
-        for lst in self.data.get("paid", {}).values():
-            if cid in lst:
-                lst.remove(cid)
+        key = self._month_key()
+        self.data["commitments"][key] = [
+            c for c in self.data["commitments"].get(key, []) if c["id"] != cid
+        ]
+        # also remove from this month's paid list
+        paid = self.data.get("paid", {}).get(key, [])
+        if cid in paid:
+            paid.remove(cid)
         save_data(self.data)
         self._refresh()
 
@@ -411,11 +415,9 @@ class App(ctk.CTk):
         save_data(self.data)
         self._refresh()
 
-    # ── Filter for view month ──────────────────────────────────────────────────
+    # ── Commitments for current month ──────────────────────────────────────────
     def _commitments_for_view(self):
-        # All commitments are monthly recurring — show every one in every month.
-        # The due date indicates which day of the month, not a one-time occurrence.
-        return list(self.data["commitments"])
+        return list(self.data["commitments"].get(self._month_key(), []))
 
     # ── Refresh UI ─────────────────────────────────────────────────────────────
     def _refresh(self):

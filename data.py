@@ -16,11 +16,14 @@ def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r") as f:
             data = json.load(f)
-        # Migrate old single-value income to per-month dict
+        # Migrate: income was a plain number → per-month dict
         if not isinstance(data.get("income"), dict):
             data["income"] = {}
+        # Migrate: commitments was a flat list → per-month dict
+        if isinstance(data.get("commitments"), list):
+            data["commitments"] = {}
         return data
-    return {"income": {}, "commitments": []}
+    return {"income": {}, "commitments": {}, "paid": {}}
 
 
 def save_data(data):
