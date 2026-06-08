@@ -384,6 +384,21 @@ class App(ctk.CTk):
 
     def _remove_commitment(self, cid):
         self.data["commitments"] = [c for c in self.data["commitments"] if c["id"] != cid]
+        # also remove from any paid lists
+        for lst in self.data.get("paid", {}).values():
+            if cid in lst:
+                lst.remove(cid)
+        save_data(self.data)
+        self._refresh()
+
+    def _toggle_paid(self, cid):
+        key = f"{self._view_year}-{self._view_month:02d}"
+        paid_map  = self.data.setdefault("paid", {})
+        paid_list = paid_map.setdefault(key, [])
+        if cid in paid_list:
+            paid_list.remove(cid)
+        else:
+            paid_list.append(cid)
         save_data(self.data)
         self._refresh()
 
@@ -454,15 +469,19 @@ class App(ctk.CTk):
             ctk.CTkFrame(parent, fg_color=colour, width=1,
                          corner_radius=0).pack(side="left", fill="y")
 
+        month_key = f"{self._view_year}-{self._view_month:02d}"
+        paid_ids  = set(self.data.get("paid", {}).get(month_key, []))
+
         def _build_row(parent, bg, num_txt, name_txt, amt_txt, due_txt,
                        is_hdr=False, cid=None):
+            is_paid = (not is_hdr) and (cid in paid_ids)
             r = ctk.CTkFrame(parent, fg_color=bg, corner_radius=0, height=CELL_H)
             r.pack(fill="x", pady=(0, 1))
             r.pack_propagate(False)
             sep_clr = HDR_SEP if is_hdr else theme.BORDER
-            fg      = "white"        if is_hdr else theme.TEXT
-            fg_m    = "white"        if is_hdr else theme.MUTED
-            fg_a    = "white"        if is_hdr else theme.PINK
+            fg      = "white"      if is_hdr else (theme.MUTED if is_paid else theme.TEXT)
+            fg_m    = "white"      if is_hdr else theme.MUTED
+            fg_a    = "white"      if is_hdr else (theme.MUTED if is_paid else theme.PINK)
             f_name  = fh if is_hdr else fn
             f_num   = fh if is_hdr else fm
             f_amt   = fh if is_hdr else fa
@@ -496,6 +515,25 @@ class App(ctk.CTk):
                          anchor="center", fg_color="transparent",
                          font=f_num, text_color=fg_m).pack(side="left", pady=P)
             vsep(r, sep_clr)
+
+            # ── PAID tick column ──
+            if is_hdr:
+                ctk.CTkLabel(r, text="PAID", width=50, height=CELL_H,
+                             anchor="center", fg_color="transparent",
+                             font=fh, text_color="white").pack(side="left", pady=P)
+            else:
+                tick_txt   = "✔" if is_paid else "○"
+                tick_color = theme.GREEN if is_paid else theme.MUTED
+                ctk.CTkButton(r, text=tick_txt, width=50, height=CELL_H,
+                              fg_color="transparent", border_width=0,
+                              text_color=tick_color,
+                              hover_color=theme.STRIP,
+                              font=ctk.CTkFont(family=MONO, size=11, weight="bold"),
+                              corner_radius=0,
+                              command=lambda _id=cid: self._toggle_paid(_id)
+                              ).pack(side="left", pady=P)
+            vsep(r, sep_clr)
+
             ctk.CTkLabel(r, text=name_txt, height=CELL_H,
                          anchor="w", fg_color="transparent",
                          font=f_name, text_color=fg).pack(
