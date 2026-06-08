@@ -1,7 +1,15 @@
 import json
 import os
+import sys
 
-DATA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data.json")
+# When running as a PyInstaller .exe, __file__ points inside the temp extraction
+# dir which is deleted on exit. Use sys.executable to find the real .exe location.
+if getattr(sys, "frozen", False):
+    _base = os.path.dirname(sys.executable)
+else:
+    _base = os.path.dirname(os.path.abspath(__file__))
+
+DATA_FILE = os.path.join(_base, "data.json")
 
 
 def load_data():
